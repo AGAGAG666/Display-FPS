@@ -55,5 +55,4 @@ set(SOURCES
 )
 
 add_library(DisplayFPS SHARED ${SOURCES})
-target_include_directories(DisplayFPS PRIVATE ${preloader_android_SOURCE_DIR}/src)
 target_link_libraries(DisplayFPS preloader log android EGL GLESv3 GLESv2)

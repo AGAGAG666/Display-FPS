@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-#include "pl/Hook.h"
 #include "pl/Gloss.h"
 
 #include "ImGui/imgui.h"
