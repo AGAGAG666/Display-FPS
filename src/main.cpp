@@ -21,7 +21,6 @@ static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
 static bool g_ForceAlwaysDepth = false;
 static bool g_SelectiveDepth = false;
-static bool g_LogPrograms = false;
 static int g_LastLoggedProgram = -1;
 static int g_TargetPrograms[16] = {3, 132, 169, 172, 175, 217, 276, 290, 499};
 static int g_TargetProgramCount = 9;
@@ -35,15 +34,13 @@ static void hook_glDepthFunc(GLenum func) {
     if (g_SelectiveDepth) {
         GLint prog = 0;
         glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-        if (g_LogPrograms) {
-            g_LastLoggedProgram = prog;
-            bool exists = false;
-            for (int i = 0; i < g_SeenCount; i++) {
-                if (g_SeenPrograms[i] == prog) { exists = true; break; }
-            }
-            if (!exists && g_SeenCount < 64) {
-                g_SeenPrograms[g_SeenCount++] = prog;
-            }
+        g_LastLoggedProgram = prog;
+        bool exists = false;
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (g_SeenPrograms[i] == prog) { exists = true; break; }
+        }
+        if (!exists && g_SeenCount < 64) {
+            g_SeenPrograms[g_SeenCount++] = prog;
         }
         for (int i = 0; i < g_TargetProgramCount; i++) {
             if (g_TargetPrograms[i] == prog) {
@@ -121,15 +118,12 @@ static void DrawMenu() {
     ImGui::Checkbox("Force GL_ALWAYS", &g_ForceAlwaysDepth);
     ImGui::Checkbox("Selective Mode", &g_SelectiveDepth);
     if (g_SelectiveDepth) {
-        ImGui::Checkbox("Log Programs", &g_LogPrograms);
-        if (g_LogPrograms && g_LastLoggedProgram >= 0) {
-            ImGui::Text("Last program: %d", g_LastLoggedProgram);
-        }
         if (g_SeenCount > 0) {
             ImGui::Text("Seen (%d):", g_SeenCount);
             for (int i = 0; i < g_SeenCount; i++) {
                 ImGui::Text("  %d", g_SeenPrograms[i]);
             }
+            ImGui::Separator();
         }
         ImGui::Checkbox("Program 3", &g_Use3);
         ImGui::Checkbox("Program 132", &g_Use132);
