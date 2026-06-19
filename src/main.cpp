@@ -28,6 +28,8 @@ static int g_TargetProgramCount = 49;
 static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
+static int g_ModifiedPrograms[64] = {0};
+static int g_ModifiedCount = 0;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
@@ -45,6 +47,13 @@ static void hook_glDepthFunc(GLenum func) {
         }
         for (int i = 0; i < g_TargetProgramCount; i++) {
             if (g_TargetPrograms[i] == prog) {
+                bool exists = false;
+                for (int j = 0; j < g_ModifiedCount; j++) {
+                    if (g_ModifiedPrograms[j] == prog) { exists = true; break; }
+                }
+                if (!exists && g_ModifiedCount < 64) {
+                    g_ModifiedPrograms[g_ModifiedCount++] = prog;
+                }
                 orig_glDepthFunc(GL_ALWAYS);
                 return;
             }
@@ -124,6 +133,14 @@ static void DrawMenu() {
             for (int i = 0; i < g_SeenCount; i++) {
                 ImGui::Text("  %d", g_SeenPrograms[i]);
             }
+            ImGui::Separator();
+        }
+        if (g_ModifiedCount > 0) {
+            ImGui::Text("Modified (%d):", g_ModifiedCount);
+            for (int i = 0; i < g_ModifiedCount; i++) {
+                ImGui::Text("  %d", g_ModifiedPrograms[i]);
+            }
+        }
             ImGui::Separator();
         }
         ImGui::Text("Targets (%d):", g_TargetProgramCount);
