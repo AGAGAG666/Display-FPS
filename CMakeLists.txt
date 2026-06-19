@@ -42,7 +42,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/ImGui
     ${CMAKE_SOURCE_DIR}/src/ImGui/backends
-    ${preloader_android_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/_deps/preloader_android-src/src
 )
 
 set(SOURCES
