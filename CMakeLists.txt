@@ -42,7 +42,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/ImGui
     ${CMAKE_SOURCE_DIR}/src/ImGui/backends
-    ${CMAKE_BINARY_DIR}/_deps/preloader_android-src/src
 )
 
 set(SOURCES
@@ -56,4 +55,5 @@ set(SOURCES
 )
 
 add_library(DisplayFPS SHARED ${SOURCES})
+target_include_directories(DisplayFPS PRIVATE ${preloader_android_SOURCE_DIR}/src)
 target_link_libraries(DisplayFPS preloader log android EGL GLESv3 GLESv2)
