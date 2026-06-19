@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <cstdio>
 
 #include "pl/Gloss.h"
 
@@ -25,7 +26,6 @@ static int g_LastLoggedProgram = -1;
 static int g_TargetPrograms[64] = {0, 3, 35, 44, 51, 53, 54, 61, 80, 93, 98, 103, 111, 118, 132, 134, 136, 148, 149, 169, 172, 175, 178, 181, 193, 217, 220, 247, 262, 272, 275, 276, 302, 308, 319, 331, 334, 343, 349, 400, 403, 405, 419, 432, 436, 443, 447, 453, 463};
 static int g_TargetProgramCount = 49;
 static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
-static void (*orig_glDepthFunc)(GLenum) = nullptr;
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
