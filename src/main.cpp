@@ -22,9 +22,10 @@ static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 static bool g_ForceAlwaysDepth = false;
 static bool g_SelectiveDepth = false;
 static int g_LastLoggedProgram = -1;
-static int g_TargetPrograms[16] = {3, 132, 169, 172, 175, 178, 0, 217, 111, 262, 181, 331, 334, 61, 343, 193};
-static int g_TargetProgramCount = 16;
-static bool g_Use3 = true, g_Use132 = true, g_Use169 = true, g_Use172 = true, g_Use175 = true, g_Use178 = true, g_Use0 = true, g_Use217 = true, g_Use111 = true, g_Use262 = true, g_Use181 = true, g_Use331 = true, g_Use334 = true, g_Use61 = true, g_Use343 = true, g_Use193 = true;
+static int g_TargetPrograms[64] = {0, 3, 35, 44, 51, 53, 54, 61, 80, 93, 98, 103, 111, 118, 132, 134, 136, 148, 149, 169, 172, 175, 178, 181, 193, 217, 220, 247, 262, 272, 275, 276, 302, 308, 319, 331, 334, 343, 349, 400, 403, 405, 419, 432, 436, 443, 447, 453, 463};
+static int g_TargetProgramCount = 49;
+static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
+static void (*orig_glDepthFunc)(GLenum) = nullptr;
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
@@ -125,39 +126,24 @@ static void DrawMenu() {
             }
             ImGui::Separator();
         }
-        ImGui::Checkbox("Program 0", &g_Use0);
-        ImGui::Checkbox("Program 3", &g_Use3);
-        ImGui::Checkbox("Program 61", &g_Use61);
-        ImGui::Checkbox("Program 111", &g_Use111);
-        ImGui::Checkbox("Program 132", &g_Use132);
-        ImGui::Checkbox("Program 169", &g_Use169);
-        ImGui::Checkbox("Program 172", &g_Use172);
-        ImGui::Checkbox("Program 175", &g_Use175);
-        ImGui::Checkbox("Program 178", &g_Use178);
-        ImGui::Checkbox("Program 181", &g_Use181);
-        ImGui::Checkbox("Program 193", &g_Use193);
-        ImGui::Checkbox("Program 217", &g_Use217);
-        ImGui::Checkbox("Program 262", &g_Use262);
-        ImGui::Checkbox("Program 331", &g_Use331);
-        ImGui::Checkbox("Program 334", &g_Use334);
-        ImGui::Checkbox("Program 343", &g_Use343);
+        ImGui::Text("Targets (%d):", g_TargetProgramCount);
+        for (int i = 0; i < g_TargetProgramCount; i++) {
+            char label[32];
+            snprintf(label, sizeof(label), "Program %d", g_TargetPrograms[i]);
+            ImGui::Checkbox(label, &g_ProgramEnabled[i]);
+        }
+        static const int allPrograms[49] = {
+            0, 3, 35, 44, 51, 53, 54, 61, 80, 93, 98, 103, 111, 118, 132, 134,
+            136, 148, 149, 169, 172, 175, 178, 181, 193, 217, 220, 247, 262, 272,
+            275, 276, 302, 308, 319, 331, 334, 343, 349, 400, 403, 405, 419, 432,
+            436, 443, 447, 453, 463
+        };
         g_TargetProgramCount = 0;
-        if (g_Use0) g_TargetPrograms[g_TargetProgramCount++] = 0;
-        if (g_Use3) g_TargetPrograms[g_TargetProgramCount++] = 3;
-        if (g_Use61) g_TargetPrograms[g_TargetProgramCount++] = 61;
-        if (g_Use111) g_TargetPrograms[g_TargetProgramCount++] = 111;
-        if (g_Use132) g_TargetPrograms[g_TargetProgramCount++] = 132;
-        if (g_Use169) g_TargetPrograms[g_TargetProgramCount++] = 169;
-        if (g_Use172) g_TargetPrograms[g_TargetProgramCount++] = 172;
-        if (g_Use175) g_TargetPrograms[g_TargetProgramCount++] = 175;
-        if (g_Use178) g_TargetPrograms[g_TargetProgramCount++] = 178;
-        if (g_Use181) g_TargetPrograms[g_TargetProgramCount++] = 181;
-        if (g_Use193) g_TargetPrograms[g_TargetProgramCount++] = 193;
-        if (g_Use217) g_TargetPrograms[g_TargetProgramCount++] = 217;
-        if (g_Use262) g_TargetPrograms[g_TargetProgramCount++] = 262;
-        if (g_Use331) g_TargetPrograms[g_TargetProgramCount++] = 331;
-        if (g_Use334) g_TargetPrograms[g_TargetProgramCount++] = 334;
-        if (g_Use343) g_TargetPrograms[g_TargetProgramCount++] = 343;
+        for (int i = 0; i < 49; i++) {
+            if (g_ProgramEnabled[i]) {
+                g_TargetPrograms[g_TargetProgramCount++] = allPrograms[i];
+            }
+        }
     }
     ImGui::End();
 }
