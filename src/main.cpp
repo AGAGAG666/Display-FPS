@@ -141,8 +141,7 @@ static void DrawMenu() {
                 ImGui::Text("  %d", g_ModifiedPrograms[i]);
             }
         }
-            ImGui::Separator();
-        }
+        ImGui::Separator();
         ImGui::Text("Targets (%d):", g_TargetProgramCount);
         for (int i = 0; i < g_TargetProgramCount; i++) {
             char label[32];
