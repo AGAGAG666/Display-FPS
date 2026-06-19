@@ -17,6 +17,54 @@ static int g_Width = 0, g_Height = 0;
 static EGLContext g_TargetContext = EGL_NO_CONTEXT;
 static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 
+static JavaVM* g_JavaVM = nullptr;
+
+static bool GetClipboardText(char* buf, int bufSize) {
+    if (!g_JavaVM) return false;
+    JNIEnv* env = nullptr;
+    bool attached = false;
+    int status = g_JavaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (status == JNI_EDETACHED) {
+        if (g_JavaVM->AttachCurrentThread(&env, nullptr) == JNI_OK) attached = true;
+        else return false;
+    } else if (status != JNI_OK) return false;
+    if (!env) return false;
+    jclass cls = env->FindClass("android/content/ClipboardManager");
+    if (!cls) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jclass activityThread = env->FindClass("android/app/ActivityThread");
+    if (!activityThread) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jmethodID currentApp = env->GetStaticMethodID(activityThread, "currentApplication", "()Landroid/app/Application;");
+    if (!currentApp) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jobject app = env->CallStaticObjectMethod(activityThread, currentApp);
+    if (!app) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jmethodID getSystemService = env->GetMethodID(env->GetObjectClass(app), "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jstring serviceName = env->NewStringUTF("clipboard");
+    jobject cm = env->CallObjectMethod(app, getSystemService, serviceName);
+    env->DeleteLocalRef(serviceName);
+    if (!cm) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jmethodID hasPrimaryClip = env->GetMethodID(cls, "hasPrimaryClip", "()Z");
+    if (!env->CallBooleanMethod(cm, hasPrimaryClip)) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jmethodID getPrimaryClip = env->GetMethodID(cls, "getPrimaryClip", "()Landroid/content/ClipData;");
+    jobject clip = env->CallObjectMethod(cm, getPrimaryClip);
+    if (!clip) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jclass clipDataCls = env->FindClass("android/content/ClipData");
+    jmethodID getItemAt = env->GetMethodID(clipDataCls, "getItemAt", "(I)Landroid/content/ClipData$Item;");
+    jobject item = env->CallObjectMethod(clip, getItemAt, 0);
+    if (!item) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    jclass itemCls = env->FindClass("android/content/ClipData$Item");
+    jmethodID getText = env->GetMethodID(itemCls, "getText", "()Ljava/lang/CharSequence;");
+    jobject text = env->CallObjectMethod(item, getText);
+    if (!text) { if (attached) g_JavaVM->DetachCurrentThread(); return false; }
+    const char* str = env->GetStringUTFChars((jstring)text, nullptr);
+    if (str) {
+        strncpy(buf, str, bufSize - 1);
+        buf[bufSize - 1] = '\0';
+        env->ReleaseStringUTFChars((jstring)text, str);
+    }
+    if (attached) g_JavaVM->DetachCurrentThread();
+    return str != nullptr;
+}
+
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
 static bool g_ForceAlwaysDepth = false;
@@ -116,6 +164,8 @@ static void DrawMenu() {
         ImGui::Text("Targets: %d", g_TargetProgramCount);
         static char buf[32] = "";
         ImGui::InputText("Program ID", buf, sizeof(buf));
+        ImGui::SameLine();
+        if (ImGui::Button("Paste") && GetClipboardText(buf, sizeof(buf))) {}
         if (ImGui::Button("Add") && buf[0] && g_TargetProgramCount < 16) {
             g_TargetPrograms[g_TargetProgramCount++] = atoi(buf);
             buf[0] = '\0';
@@ -222,4 +272,9 @@ __attribute__((constructor))
 void DisplayFPS_Init() {
     pthread_t t;
     pthread_create(&t, nullptr, MainThread, nullptr);
+}
+
+JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
+    g_JavaVM = vm;
+    return JNI_VERSION_1_6;
 }
