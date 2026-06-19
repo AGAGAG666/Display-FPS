@@ -20,6 +20,17 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
+static bool g_ForceAlwaysDepth = false;
+static void (*orig_glDepthFunc)(GLenum) = nullptr;
+
+static void hook_glDepthFunc(GLenum func) {
+    if (g_ForceAlwaysDepth && orig_glDepthFunc) {
+        orig_glDepthFunc(GL_ALWAYS);
+    } else if (orig_glDepthFunc) {
+        orig_glDepthFunc(func);
+    }
+}
+
 static void (*orig_Input1)(void*, void*, void*) = nullptr;
 static void hook_Input1(void* thiz, void* a1, void* a2) {
     if (orig_Input1) orig_Input1(thiz, a1, a2);
@@ -80,6 +91,8 @@ static void DrawMenu() {
     ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
     ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("%.1f FPS", io.Framerate);
+    ImGui::Separator();
+    ImGui::Checkbox("Force GL_ALWAYS", &g_ForceAlwaysDepth);
     ImGui::End();
 }
 
@@ -165,6 +178,13 @@ static void* MainThread(void*) {
     GHook h = GlossHook(swap, (void*)hook_eglSwapBuffers, (void**)&orig_eglSwapBuffers);
     if (!h) return nullptr;
     HookInput();
+    GHandle hGL = GlossOpen("libGLESv2.so");
+    if (hGL) {
+        void* depthFunc = (void*)GlossSymbol(hGL, "glDepthFunc", nullptr);
+        if (depthFunc) {
+            GlossHook(depthFunc, (void*)hook_glDepthFunc, (void**)&orig_glDepthFunc);
+        }
+    }
     return nullptr;
 }
 
