@@ -23,9 +23,9 @@ static bool g_ForceAlwaysDepth = false;
 static bool g_SelectiveDepth = false;
 static bool g_LogPrograms = false;
 static int g_LastLoggedProgram = -1;
-static int g_TargetPrograms[16] = {3, 175, 276, 217};
-static int g_TargetProgramCount = 4;
-static bool g_Use3 = true, g_Use175 = true, g_Use276 = true, g_Use217 = true;
+static int g_TargetPrograms[16] = {3, 172, 175, 217, 276};
+static int g_TargetProgramCount = 5;
+static bool g_Use3 = true, g_Use172 = true, g_Use175 = true, g_Use217 = true, g_Use276 = true;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
@@ -115,11 +115,13 @@ static void DrawMenu() {
             ImGui::Text("Last program: %d", g_LastLoggedProgram);
         }
         ImGui::Checkbox("Program 3", &g_Use3);
+        ImGui::Checkbox("Program 172", &g_Use172);
         ImGui::Checkbox("Program 175", &g_Use175);
         ImGui::Checkbox("Program 217", &g_Use217);
         ImGui::Checkbox("Program 276", &g_Use276);
         g_TargetProgramCount = 0;
         if (g_Use3) g_TargetPrograms[g_TargetProgramCount++] = 3;
+        if (g_Use172) g_TargetPrograms[g_TargetProgramCount++] = 172;
         if (g_Use175) g_TargetPrograms[g_TargetProgramCount++] = 175;
         if (g_Use217) g_TargetPrograms[g_TargetProgramCount++] = 217;
         if (g_Use276) g_TargetPrograms[g_TargetProgramCount++] = 276;
