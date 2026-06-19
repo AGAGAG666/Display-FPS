@@ -20,14 +20,30 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
 static bool g_ForceAlwaysDepth = false;
+static bool g_SelectiveDepth = false;
+static bool g_LogPrograms = false;
+static int g_LastLoggedProgram = -1;
+static int g_TargetPrograms[16] = {0};
+static int g_TargetProgramCount = 0;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
-    if (g_ForceAlwaysDepth && orig_glDepthFunc) {
+    if (!orig_glDepthFunc) return;
+    if (g_SelectiveDepth) {
+        GLint prog = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+        if (g_LogPrograms) g_LastLoggedProgram = prog;
+        for (int i = 0; i < g_TargetProgramCount; i++) {
+            if (g_TargetPrograms[i] == prog) {
+                orig_glDepthFunc(GL_ALWAYS);
+                return;
+            }
+        }
+    } else if (g_ForceAlwaysDepth) {
         orig_glDepthFunc(GL_ALWAYS);
-    } else if (orig_glDepthFunc) {
-        orig_glDepthFunc(func);
+        return;
     }
+    orig_glDepthFunc(func);
 }
 
 static void (*orig_Input1)(void*, void*, void*) = nullptr;
@@ -86,12 +102,27 @@ static void RestoreGL(const GLState& s) {
 }
 
 static void DrawMenu() {
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
-    ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("%.1f FPS", io.Framerate);
+    ImGui::SetNextWindowSize(ImVec2(250, 0), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Separator();
     ImGui::Checkbox("Force GL_ALWAYS", &g_ForceAlwaysDepth);
+    ImGui::Checkbox("Selective Mode", &g_SelectiveDepth);
+    if (g_SelectiveDepth) {
+        ImGui::Checkbox("Log Programs", &g_LogPrograms);
+        if (g_LogPrograms && g_LastLoggedProgram >= 0) {
+            ImGui::Text("Last program: %d", g_LastLoggedProgram);
+        }
+        ImGui::Text("Targets: %d", g_TargetProgramCount);
+        static char buf[32] = "";
+        ImGui::InputText("Program ID", buf, sizeof(buf));
+        if (ImGui::Button("Add") && buf[0] && g_TargetProgramCount < 16) {
+            g_TargetPrograms[g_TargetProgramCount++] = atoi(buf);
+            buf[0] = '\0';
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) g_TargetProgramCount = 0;
+    }
     ImGui::End();
 }
 
