@@ -39,8 +39,9 @@ static std::vector<GLuint> g_ProgramOrder;
 static int g_LastProgram = -1;
 static int g_SeenPrograms[256] = {0};
 static int g_SeenCount = 0;
-static const uint32_t g_DefaultHashes[] = {0x30D52ED0, 0x3F94D1B0, 0x6E7CA2C7};
+static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF};
 static const int g_DefaultHashCount = 3;
+static char g_HashInput[16] = "";
 
 static uint32_t computeHash(const std::string& s) {
     uint32_t h = 0x811c9dc5;
@@ -260,6 +261,31 @@ static void DrawMenu() {
             ImGui::Checkbox(label, &dummy);
         }
         if (++count % 2 == 0) ImGui::SameLine();
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Add Hash:");
+    ImGui::SetNextItemWidth(120);
+    ImGui::InputText("##hash", g_HashInput, sizeof(g_HashInput));
+    ImGui::SameLine();
+    if (ImGui::Button("Enable")) {
+        uint32_t h = (uint32_t)strtoul(g_HashInput, nullptr, 16);
+        if (h != 0) {
+            for (auto& p : g_Programs) {
+                if (p.second.hash == h) { p.second.enabled = true; break; }
+            }
+            g_HashInput[0] = '\0';
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Disable")) {
+        uint32_t h = (uint32_t)strtoul(g_HashInput, nullptr, 16);
+        if (h != 0) {
+            for (auto& p : g_Programs) {
+                if (p.second.hash == h) { p.second.enabled = false; break; }
+            }
+            g_HashInput[0] = '\0';
+        }
     }
 
     ImGui::End();
