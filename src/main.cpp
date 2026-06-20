@@ -154,7 +154,7 @@ static void hook_glLinkProgram(GLuint program) {
     if (!exists) {
         ProgramInfo info;
         info.hash = hash;
-        info.enabled = false;
+        info.enabled = (hash == 0x30D52ED0);
         matchLabel(combined, info.label, sizeof(info.label));
         g_Programs[program] = info;
         g_ProgramOrder.push_back(program);
