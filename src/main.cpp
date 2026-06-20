@@ -162,6 +162,14 @@ static void hook_glLinkProgram(GLuint program) {
 }
 
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
+
+struct UniformEntry {
+    char name[64];
+    int type;
+    float value;
+};
+static std::vector<UniformEntry> g_Uniforms;
+static bool g_ShowUniforms = false;
 static void hook_glDepthFunc(GLenum func) {
     if (!orig_glDepthFunc) return;
     GLint prog = 0;
@@ -182,6 +190,31 @@ static void hook_glDepthFunc(GLenum func) {
         return;
     }
     orig_glDepthFunc(func);
+}
+
+static void (*orig_glUniform1f)(GLint, GLfloat) = nullptr;
+static void hook_glUniform1f(GLint location, GLfloat v0) {
+    if (orig_glUniform1f) orig_glUniform1f(location, v0);
+    if (!g_ShowUniforms) return;
+
+    char name[64] = {0};
+    GLint prog = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    if (prog) {
+        GLsizei len = 0;
+        glGetActiveUniformName(prog, location, sizeof(name), &len, name);
+    }
+
+    bool exists = false;
+    for (auto& u : g_Uniforms) {
+        if (strcmp(u.name, name) == 0) { u.value = v0; exists = true; break; }
+    }
+    if (!exists && name[0]) {
+        UniformEntry entry;
+        strncpy(entry.name, name, sizeof(entry.name) - 1);
+        entry.value = v0;
+        g_Uniforms.push_back(entry);
+    }
 }
 
 static void (*orig_Input1)(void*, void*, void*) = nullptr;
@@ -327,6 +360,15 @@ static void DrawMenu() {
         }
     }
 
+    if (ImGui::CollapsingHeader("Uniforms")) {
+        ImGui::Checkbox("Show", &g_ShowUniforms);
+        if (g_ShowUniforms && !g_Uniforms.empty()) {
+            for (auto& u : g_Uniforms) {
+                ImGui::Text("%s = %.3f", u.name, u.value);
+            }
+        }
+    }
+
     ImGui::End();
 }
 
@@ -424,6 +466,9 @@ static void* MainThread(void*) {
         void* linkProgram = (void*)GlossSymbol(hGL, "glLinkProgram", nullptr);
         if (linkProgram)
             GlossHook(linkProgram, (void*)hook_glLinkProgram, (void**)&orig_glLinkProgram);
+        void* uniform1f = (void*)GlossSymbol(hGL, "glUniform1f", nullptr);
+        if (uniform1f)
+            GlossHook(uniform1f, (void*)hook_glUniform1f, (void**)&orig_glUniform1f);
     }
     return nullptr;
 }
