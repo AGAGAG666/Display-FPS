@@ -43,8 +43,6 @@ static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF, 0
 static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF", "30D52ED0", "B91FC562"};
 static const int g_DefaultHashCount = 5;
 static char g_HashInput[16] = "";
-static bool g_NightVision = false;
-static char g_UniformFilter[64] = "";
 
 static uint32_t computeHash(const std::string& s) {
     uint32_t h = 0x811c9dc5;
@@ -120,39 +118,6 @@ static void matchLabel(const std::string& src, char* out, size_t maxLen) {
 
 static void (*orig_glShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*) = nullptr;
 static void hook_glShaderSource(GLuint shader, GLsizei count, const GLchar** strings, const GLint* lengths) {
-    if (g_NightVision && orig_glShaderSource) {
-        std::string src;
-        for (GLsizei i = 0; i < count; i++) {
-            if (lengths && lengths[i] > 0)
-                src.append(strings[i], lengths[i]);
-            else
-                src.append(strings[i] ? strings[i] : "");
-        }
-        // 注入夜视：在 main() 前添加强制亮度代码
-        if (src.find("void main") != std::string::npos && src.find("NIGHTVISION_ADDED") == std::string::npos) {
-            std::string inject = "#define NIGHTVISION_ADDED\n"
-                "vec3 nightVisionHack(vec3 c) { return c * 3.0; }\n";
-            size_t pos = src.find("void main");
-            src.insert(pos, inject);
-            // 替换输出：在最后的 color 赋值后增强亮度
-            const char* keywords[] = {"gl_FragColor", "gl_FragData[0]", "FragColor"};
-            for (auto& kw : keywords) {
-                size_t p = src.rfind(kw);
-                if (p != std::string::npos) {
-                    size_t semi = src.find(';', p);
-                    if (semi != std::string::npos) {
-                        std::string after = src.substr(semi + 1);
-                        src = src.substr(0, semi + 1) + "\n" + kw + ".rgb = " + kw + ".rgb * 2.5;\n" + after;
-                        break;
-                    }
-                }
-            }
-            count = 1;
-            const GLchar* newStr = src.c_str();
-            strings = &newStr;
-            lengths = nullptr;
-        }
-    }
     if (orig_glShaderSource) orig_glShaderSource(shader, count, strings, lengths);
     std::string src;
     for (GLsizei i = 0; i < count; i++) {
@@ -229,19 +194,6 @@ static void hook_glDepthFunc(GLenum func) {
 
 static void (*orig_glUniform1f)(GLint, GLfloat) = nullptr;
 static void hook_glUniform1f(GLint location, GLfloat v0) {
-    if (g_NightVision && location >= 0) {
-        GLint prog = 0;
-        glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-        if (prog) {
-            char name[64] = {0};
-            GLsizei len = 0; GLint size = 0; GLenum type = 0;
-            glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
-            if (strstr(name, "ight") || strstr(name, "ision") || strstr(name, "og") || strstr(name, "right") || strstr(name, "mbient")) {
-                if (orig_glUniform1f) orig_glUniform1f(location, 1.0f);
-                return;
-            }
-        }
-    }
     if (orig_glUniform1f) orig_glUniform1f(location, v0);
     if (!g_ShowUniforms || location < 0) return;
     char name[64] = {0};
@@ -457,16 +409,9 @@ static void DrawMenu() {
 
     if (ImGui::CollapsingHeader("Uniforms")) {
         ImGui::Checkbox("Show", &g_ShowUniforms);
-        ImGui::SameLine();
-        ImGui::Checkbox("Night Vision", &g_NightVision);
-        if (g_ShowUniforms) {
-            ImGui::SetNextItemWidth(200);
-            ImGui::InputText("Filter", g_UniformFilter, sizeof(g_UniformFilter));
-            if (!g_Uniforms.empty()) {
-                for (auto& u : g_Uniforms) {
-                    if (g_UniformFilter[0] && !strstr(u.name, g_UniformFilter)) continue;
-                    ImGui::Text("%s = %.3f", u.name, u.value);
-                }
+        if (g_ShowUniforms && !g_Uniforms.empty()) {
+            for (auto& u : g_Uniforms) {
+                ImGui::Text("%s = %.3f", u.name, u.value);
             }
         }
     }
