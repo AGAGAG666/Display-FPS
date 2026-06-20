@@ -55,52 +55,65 @@ static uint32_t computeHash(const std::string& s) {
 
 static void matchLabel(const std::string& src, char* out, size_t maxLen) {
     out[0] = '\0';
-    struct { const char* key; const char* name; int priority; } keywords[] = {
-        {"flat_color_line", "flat_color_line", 10},
-        {"entity_static", "entity_static", 9},
-        {"entity_lead", "entity_lead", 8},
-        {"entity_beam", "entity_beam", 8},
-        {"entity_named", "entity_named", 8},
-        {"entity_alphatest", "entity_alpha", 7},
-        {"renderchunk", "renderchunk", 6},
-        {"particle", "particle", 5},
-        {"weather", "weather", 5},
-        {"clouds", "clouds", 5},
-        {"water", "water", 5},
-        {"translucent", "translucent", 5},
-        {"glint", "glint", 5},
-        {"shadow", "shadow", 5},
-        {"ui_screen", "ui_screen", 4},
-        {"ui_item", "ui_item", 4},
-        {"ui_text", "ui_text", 4},
-        {"sky", "sky", 3},
-        {"line", "line", 2},
-        {"entity", "entity", 1},
-        {"ui", "ui", 1},
+    // 先找更具体的特征
+    struct { const char* key; const char* name; } specific[] = {
+        {"flat_color_line", "flat_color_line"},
+        {"entity_static", "entity_static"},
+        {"entity_lead", "entity_lead"},
+        {"entity_beam", "entity_beam"},
+        {"entity_named", "entity_named"},
+        {"entity_alphatest", "entity_alpha"},
+        {"renderchunk", "renderchunk"},
+        {"particle", "particle"},
+        {"weather", "weather"},
+        {"clouds", "clouds"},
+        {"water", "water"},
+        {"translucent", "translucent"},
+        {"glint", "glint"},
+        {"shadow", "shadow"},
+        {"ui_screen", "ui_screen"},
+        {"ui_item", "ui_item"},
+        {"ui_text", "ui_text"},
+        {"sky", "sky"},
+        {"line", "line"},
+        {"depth", "depth"},
     };
-    int bestPriority = -1;
-    for (auto& kw : keywords) {
-        if (src.find(kw.key) != std::string::npos && kw.priority > bestPriority) {
-            bestPriority = kw.priority;
+    for (auto& kw : specific) {
+        if (src.find(kw.key) != std::string::npos) {
             strncpy(out, kw.name, maxLen - 1);
             out[maxLen - 1] = '\0';
+            return;
         }
     }
-    if (out[0] == '\0') {
-        // 找 uniform 名称作为特征
-        size_t pos = src.find("uniform ");
-        if (pos != std::string::npos) {
-            size_t end = src.find(';', pos);
-            if (end != std::string::npos && end - pos < 40) {
-                strncpy(out, src.c_str() + pos, maxLen - 1);
-                out[maxLen - 1] = '\0';
-            } else {
-                snprintf(out, maxLen, "prog_%u", computeHash(src) % 10000);
+    // entity 相关：显示第一个不同的 uniform 名
+    if (src.find("entity") != std::string::npos) {
+        const char* uniforms[] = {"BONE", "COLOR", "UV", "NOSHADE", "FOG", "LIGHT", "TEXCOORD", "ATTRIB"};
+        for (auto& u : uniforms) {
+            if (src.find(u) != std::string::npos) {
+                snprintf(out, maxLen, "entity_%s", u);
+                return;
             }
-        } else {
-            snprintf(out, maxLen, "prog_%u", computeHash(src) % 10000);
         }
+        // 显示源码前20字符作为特征
+        size_t pos = src.find("entity");
+        if (pos + 30 < src.size()) {
+            char excerpt[32];
+            strncpy(excerpt, src.c_str() + pos, 20);
+            excerpt[20] = '\0';
+            snprintf(out, maxLen, "entity...%s", excerpt);
+        } else {
+            strncpy(out, "entity", maxLen - 1);
+            out[maxLen - 1] = '\0';
+        }
+        return;
     }
+    // ui 相关
+    if (src.find("ui") != std::string::npos) {
+        strncpy(out, "ui", maxLen - 1);
+        out[maxLen - 1] = '\0';
+        return;
+    }
+    snprintf(out, maxLen, "prog_%u", computeHash(src) % 10000);
 }
 
 static void (*orig_glShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*) = nullptr;
