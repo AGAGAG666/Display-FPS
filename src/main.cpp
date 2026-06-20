@@ -120,6 +120,38 @@ static void matchLabel(const std::string& src, char* out, size_t maxLen) {
 
 static void (*orig_glShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*) = nullptr;
 static void hook_glShaderSource(GLuint shader, GLsizei count, const GLchar** strings, const GLint* lengths) {
+    if (g_NightVision && orig_glShaderSource) {
+        std::string src;
+        for (GLsizei i = 0; i < count; i++) {
+            if (lengths && lengths[i] > 0)
+                src.append(strings[i], lengths[i]);
+            else
+                src.append(strings[i] ? strings[i] : "");
+        }
+        // 注入夜视：在 main() 前添加强制亮度代码
+        if (src.find("void main") != std::string::npos && src.find("NIGHTVISION_ADDED") == std::string::npos) {
+            std::string inject = "#define NIGHTVISION_ADDED\n"
+                "vec3 nightVisionHack(vec3 c) { return c * 3.0; }\n";
+            size_t pos = src.find("void main");
+            src.insert(pos, inject);
+            // 替换输出：在最后的 color 赋值后增强亮度
+            const char* keywords[] = {"gl_FragColor", "gl_FragData[0]", "FragColor"};
+            for (auto& kw : keywords) {
+                size_t p = src.rfind(kw);
+                if (p != std::string::npos) {
+                    size_t semi = src.find(';', p);
+                    if (semi != std::string::npos) {
+                        std::string after = src.substr(semi + 1);
+                        src = src.substr(0, semi + 1) + "\n" + kw + ".rgb = " + kw + ".rgb * 2.5;\n" + after;
+                        break;
+                    }
+                }
+            }
+            count = 1;
+            strings = &src.c_str();
+            lengths = nullptr;
+        }
+    }
     if (orig_glShaderSource) orig_glShaderSource(shader, count, strings, lengths);
     std::string src;
     for (GLsizei i = 0; i < count; i++) {
