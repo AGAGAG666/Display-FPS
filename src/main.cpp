@@ -5,6 +5,11 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "pl/Gloss.h"
 
@@ -19,16 +24,113 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
-static bool g_Use181 = true;
-static int g_LastProgram = -1;
-static void (*orig_glDepthFunc)(GLenum) = nullptr;
+struct ShaderEntry {
+    std::string source;
+};
+static std::map<GLuint, ShaderEntry> g_Shaders;
 
+struct ProgramInfo {
+    uint32_t hash;
+    char label[64];
+    bool enabled;
+};
+static std::map<GLuint, ProgramInfo> g_Programs;
+static std::vector<GLuint> g_ProgramOrder;
+static int g_LastProgram = -1;
+
+static uint32_t computeHash(const std::string& s) {
+    uint32_t h = 0x811c9dc5;
+    for (char c : s) {
+        h ^= (uint8_t)c;
+        h *= 0x01000193;
+    }
+    return h;
+}
+
+static void matchLabel(const std::string& src, char* out, size_t maxLen) {
+    out[0] = '\0';
+    struct { const char* key; const char* name; } keywords[] = {
+        {"flat_color_line", "flat_color_line"},
+        {"entity_flat", "entity_flat"},
+        {"entity_static", "entity_static"},
+        {"entity", "entity"},
+        {"renderchunk", "renderchunk"},
+        {"particle", "particle"},
+        {"weather", "weather"},
+        {"clouds", "clouds"},
+        {"sky", "sky"},
+        {"water", "water"},
+        {"translucent", "translucent"},
+        {"glint", "glint"},
+        {"shadow", "shadow"},
+        {"ui", "ui"},
+        {"line", "line"},
+        {"depth", "depth"},
+    };
+    for (auto& kw : keywords) {
+        if (src.find(kw.key) != std::string::npos) {
+            strncpy(out, kw.name, maxLen - 1);
+            out[maxLen - 1] = '\0';
+            return;
+        }
+    }
+    snprintf(out, maxLen, "unknown");
+}
+
+static void (*orig_glShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*) = nullptr;
+static void hook_glShaderSource(GLuint shader, GLsizei count, const GLchar** strings, const GLint* lengths) {
+    if (orig_glShaderSource) orig_glShaderSource(shader, count, strings, lengths);
+    std::string src;
+    for (GLsizei i = 0; i < count; i++) {
+        if (lengths && lengths[i] > 0)
+            src.append(strings[i], lengths[i]);
+        else
+            src.append(strings[i] ? strings[i] : "");
+    }
+    g_Shaders[shader].source = src;
+}
+
+static void (*orig_glLinkProgram)(GLuint) = nullptr;
+static void hook_glLinkProgram(GLuint program) {
+    if (orig_glLinkProgram) orig_glLinkProgram(program);
+
+    GLuint shaders[16];
+    GLsizei count = 0;
+    glGetAttachedShaders(program, 16, &count, shaders);
+
+    std::string combined;
+    for (GLsizei i = 0; i < count; i++) {
+        auto it = g_Shaders.find(shaders[i]);
+        if (it != g_Shaders.end())
+            combined += it->second.source;
+    }
+
+    uint32_t hash = computeHash(combined);
+
+    bool exists = false;
+    for (auto& p : g_Programs) {
+        if (p.second.hash == hash) { exists = true; break; }
+    }
+
+    if (!exists) {
+        ProgramInfo info;
+        info.hash = hash;
+        info.enabled = false;
+        matchLabel(combined, info.label, sizeof(info.label));
+        g_Programs[program] = info;
+        g_ProgramOrder.push_back(program);
+    }
+}
+
+static void (*orig_glDepthFunc)(GLenum) = nullptr;
 static void hook_glDepthFunc(GLenum func) {
     if (!orig_glDepthFunc) return;
     GLint prog = 0;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
     g_LastProgram = prog;
-    if (g_Use181 && prog == 181) {
+
+    auto it = g_Programs.find(prog);
+    if (it != g_Programs.end() && it->second.enabled) {
         orig_glDepthFunc(GL_ALWAYS);
         return;
     }
@@ -91,12 +193,24 @@ static void RestoreGL(const GLState& s) {
 }
 
 static void DrawMenu() {
-    ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+    ImGui::Begin("FPS");
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Text("Last: %d", g_LastProgram);
     ImGui::Separator();
-    ImGui::Checkbox("Program 181", &g_Use181);
+
+    int count = 0;
+    for (GLuint prog : g_ProgramOrder) {
+        auto it = g_Programs.find(prog);
+        if (it == g_Programs.end()) continue;
+        auto& info = it->second;
+
+        char label[128];
+        snprintf(label, sizeof(label), "[%08X] %s##%u", info.hash, info.label, prog);
+        ImGui::Checkbox(label, &info.enabled);
+        if (++count % 3 == 0) ImGui::SameLine();
+    }
+
     ImGui::End();
 }
 
@@ -186,9 +300,14 @@ static void* MainThread(void*) {
     GHandle hGL = GlossOpen("libGLESv2.so");
     if (hGL) {
         void* depthFunc = (void*)GlossSymbol(hGL, "glDepthFunc", nullptr);
-        if (depthFunc) {
+        if (depthFunc)
             GlossHook(depthFunc, (void*)hook_glDepthFunc, (void**)&orig_glDepthFunc);
-        }
+        void* shaderSource = (void*)GlossSymbol(hGL, "glShaderSource", nullptr);
+        if (shaderSource)
+            GlossHook(shaderSource, (void*)hook_glShaderSource, (void**)&orig_glShaderSource);
+        void* linkProgram = (void*)GlossSymbol(hGL, "glLinkProgram", nullptr);
+        if (linkProgram)
+            GlossHook(linkProgram, (void*)hook_glLinkProgram, (void**)&orig_glLinkProgram);
     }
     return nullptr;
 }
