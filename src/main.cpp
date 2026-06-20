@@ -90,29 +90,10 @@ static void RestoreGL(const GLState& s) {
 
 static void DrawMenu() {
     ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
-    ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_ResizeFromAnySide);
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Separator();
     ImGui::Checkbox("Program 181", &g_Use181);
-
-    ImVec2 winPos = ImGui::GetWindowPos();
-    ImVec2 winSize = ImGui::GetWindowSize();
-    ImVec2 handlePos = ImVec2(winPos.x + winSize.x - 24, winPos.y + winSize.y - 24);
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->AddRectFilled(handlePos, ImVec2(handlePos.x + 24, handlePos.y + 24), IM_COL32(100, 100, 100, 180));
-    drawList->AddText(ImVec2(handlePos.x + 4, handlePos.y + 4), IM_COL32(255, 255, 255, 255), "::");
-
-    ImGui::SetCursorScreenPos(handlePos);
-    ImGui::InvisibleButton("##resize", ImVec2(24, 24));
-    if (ImGui::IsItemActive()) {
-        ImVec2 delta = ImGui::GetIO().MouseDelta;
-        winSize.x += delta.x;
-        winSize.y += delta.y;
-        if (winSize.x < 120) winSize.x = 120;
-        if (winSize.y < 60) winSize.y = 60;
-        ImGui::SetNextWindowSize(winSize);
-    }
-
     ImGui::End();
 }
 
