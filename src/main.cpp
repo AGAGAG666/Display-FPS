@@ -23,9 +23,9 @@ static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 static bool g_ForceAlwaysDepth = false;
 static bool g_SelectiveDepth = false;
 static int g_LastLoggedProgram = -1;
-static int g_TargetPrograms[64] = {0, 3, 39, 132, 169, 172, 175, 178, 181, 247, 331, 349};
-static int g_TargetProgramCount = 12;
-static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true};
+static int g_TargetPrograms[64] = {0};
+static int g_TargetProgramCount = 0;
+static bool g_ProgramEnabled[64] = {true};
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static int g_ModifiedPrograms[64] = {0};
@@ -43,15 +43,17 @@ static void hook_glDepthFunc(GLenum func) {
             if (g_SeenPrograms[i] == prog) { exists = true; break; }
         }
         if (!exists && g_SeenCount < 64) {
-            g_SeenPrograms[g_SeenCount++] = prog;
+            g_SeenPrograms[g_SeenCount] = prog;
+            g_ProgramEnabled[g_SeenCount] = true;
+            g_SeenCount++;
         }
-        for (int i = 0; i < g_TargetProgramCount; i++) {
-            if (g_TargetPrograms[i] == prog) {
-                bool exists = false;
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (g_SeenPrograms[i] == prog && g_ProgramEnabled[i]) {
+                bool modExists = false;
                 for (int j = 0; j < g_ModifiedCount; j++) {
-                    if (g_ModifiedPrograms[j] == prog) { exists = true; break; }
+                    if (g_ModifiedPrograms[j] == prog) { modExists = true; break; }
                 }
-                if (!exists && g_ModifiedCount < 64) {
+                if (!modExists && g_ModifiedCount < 64) {
                     g_ModifiedPrograms[g_ModifiedCount++] = prog;
                 }
                 orig_glDepthFunc(GL_ALWAYS);
@@ -142,19 +144,18 @@ static void DrawMenu() {
             }
         }
         ImGui::Separator();
-        ImGui::Text("Targets (%d):", g_TargetProgramCount);
-        static const int allPrograms[12] = {
-            0, 3, 39, 132, 169, 172, 175, 178, 181, 247, 331, 349
-        };
-        for (int i = 0; i < 12; i++) {
-            char label[32];
-            snprintf(label, sizeof(label), "Program %d", allPrograms[i]);
-            ImGui::Checkbox(label, &g_ProgramEnabled[i]);
+        if (g_SeenCount > 0) {
+            ImGui::Text("Seen (%d):", g_SeenCount);
+            for (int i = 0; i < g_SeenCount; i++) {
+                char label[32];
+                snprintf(label, sizeof(label), "Program %d", g_SeenPrograms[i]);
+                ImGui::Checkbox(label, &g_ProgramEnabled[i]);
+            }
         }
         g_TargetProgramCount = 0;
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < g_SeenCount; i++) {
             if (g_ProgramEnabled[i]) {
-                g_TargetPrograms[g_TargetProgramCount++] = allPrograms[i];
+                g_TargetPrograms[g_TargetProgramCount++] = g_SeenPrograms[i];
             }
         }
     }
