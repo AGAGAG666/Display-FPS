@@ -43,6 +43,8 @@ static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF, 0
 static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF", "30D52ED0", "B91FC562"};
 static const int g_DefaultHashCount = 5;
 static char g_HashInput[16] = "";
+static bool g_NightVision = false;
+static char g_UniformFilter[64] = "";
 
 static uint32_t computeHash(const std::string& s) {
     uint32_t h = 0x811c9dc5;
@@ -194,6 +196,19 @@ static void hook_glDepthFunc(GLenum func) {
 
 static void (*orig_glUniform1f)(GLint, GLfloat) = nullptr;
 static void hook_glUniform1f(GLint location, GLfloat v0) {
+    if (g_NightVision && location >= 0) {
+        GLint prog = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+        if (prog) {
+            char name[64] = {0};
+            GLsizei len = 0; GLint size = 0; GLenum type = 0;
+            glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
+            if (strstr(name, "ight") || strstr(name, "ision") || strstr(name, "og") || strstr(name, "right") || strstr(name, "mbient")) {
+                if (orig_glUniform1f) orig_glUniform1f(location, 1.0f);
+                return;
+            }
+        }
+    }
     if (orig_glUniform1f) orig_glUniform1f(location, v0);
     if (!g_ShowUniforms || location < 0) return;
     char name[64] = {0};
@@ -409,9 +424,16 @@ static void DrawMenu() {
 
     if (ImGui::CollapsingHeader("Uniforms")) {
         ImGui::Checkbox("Show", &g_ShowUniforms);
-        if (g_ShowUniforms && !g_Uniforms.empty()) {
-            for (auto& u : g_Uniforms) {
-                ImGui::Text("%s = %.3f", u.name, u.value);
+        ImGui::SameLine();
+        ImGui::Checkbox("Night Vision", &g_NightVision);
+        if (g_ShowUniforms) {
+            ImGui::SetNextItemWidth(200);
+            ImGui::InputText("Filter", g_UniformFilter, sizeof(g_UniformFilter));
+            if (!g_Uniforms.empty()) {
+                for (auto& u : g_Uniforms) {
+                    if (g_UniformFilter[0] && !strstr(u.name, g_UniformFilter)) continue;
+                    ImGui::Text("%s = %.3f", u.name, u.value);
+                }
             }
         }
     }
