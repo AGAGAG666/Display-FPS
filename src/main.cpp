@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#include <cstdio>
 
 #include "pl/Gloss.h"
 
@@ -20,46 +19,14 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
-static bool g_ForceAlwaysDepth = false;
-static bool g_SelectiveDepth = false;
-static int g_LastLoggedProgram = -1;
-static int g_TargetPrograms[64] = {0};
-static int g_TargetProgramCount = 0;
-static bool g_TargetEnabled[64] = {true};
-static int g_SeenPrograms[64] = {0};
-static int g_SeenCount = 0;
-static int g_ModifiedPrograms[64] = {0};
-static int g_ModifiedCount = 0;
+static bool g_Use181 = true;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
     if (!orig_glDepthFunc) return;
-    if (g_SelectiveDepth) {
-        GLint prog = 0;
-        glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-        g_LastLoggedProgram = prog;
-        bool exists = false;
-        for (int i = 0; i < g_SeenCount; i++) {
-            if (g_SeenPrograms[i] == prog) { exists = true; break; }
-        }
-        if (!exists && g_SeenCount < 64) {
-            g_SeenPrograms[g_SeenCount++] = prog;
-            g_TargetPrograms[g_TargetProgramCount++] = prog;
-        }
-        for (int i = 0; i < g_TargetProgramCount; i++) {
-            if (g_TargetPrograms[i] == prog && g_TargetEnabled[i]) {
-                bool modExists = false;
-                for (int j = 0; j < g_ModifiedCount; j++) {
-                    if (g_ModifiedPrograms[j] == prog) { modExists = true; break; }
-                }
-                if (!modExists && g_ModifiedCount < 64) {
-                    g_ModifiedPrograms[g_ModifiedCount++] = prog;
-                }
-                orig_glDepthFunc(GL_ALWAYS);
-                return;
-            }
-        }
-    } else if (g_ForceAlwaysDepth) {
+    GLint prog = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    if (g_Use181 && prog == 181) {
         orig_glDepthFunc(GL_ALWAYS);
         return;
     }
@@ -122,41 +89,11 @@ static void RestoreGL(const GLState& s) {
 }
 
 static void DrawMenu() {
-    ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
     ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Separator();
-    ImGui::Checkbox("Force GL_ALWAYS", &g_ForceAlwaysDepth);
-    ImGui::Checkbox("Selective Mode", &g_SelectiveDepth);
-    if (g_SelectiveDepth) {
-        if (g_SeenCount > 0) {
-            ImGui::Text("Seen (%d):", g_SeenCount);
-            for (int i = 0; i < g_SeenCount; i++) {
-                if (i > 0 && i % 10 == 0) ImGui::NewLine();
-                ImGui::SameLine();
-                ImGui::Text("%d ", g_SeenPrograms[i]);
-            }
-            ImGui::Separator();
-        }
-        if (g_ModifiedCount > 0) {
-            ImGui::Text("Modified (%d):", g_ModifiedCount);
-            for (int i = 0; i < g_ModifiedCount; i++) {
-                if (i > 0 && i % 10 == 0) ImGui::NewLine();
-                ImGui::SameLine();
-                ImGui::Text("%d ", g_ModifiedPrograms[i]);
-            }
-            ImGui::Separator();
-        }
-        if (g_TargetProgramCount > 0) {
-            ImGui::Text("Targets (%d):", g_TargetProgramCount);
-            for (int i = 0; i < g_TargetProgramCount; i++) {
-                if (i > 0 && i % 5 == 0) ImGui::NewLine();
-                char label[16];
-                snprintf(label, sizeof(label), "%d", g_TargetPrograms[i]);
-                ImGui::Checkbox(label, &g_TargetEnabled[i]);
-            }
-        }
-    }
+    ImGui::Checkbox("Program 181", &g_Use181);
     ImGui::End();
 }
 
