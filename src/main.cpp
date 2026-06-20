@@ -202,7 +202,9 @@ static void hook_glUniform1f(GLint location, GLfloat v0) {
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
     if (prog) {
         GLsizei len = 0;
-        glGetActiveUniformName(prog, location, sizeof(name), &len, name);
+        GLint size = 0;
+        GLenum type = 0;
+        glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
     }
 
     bool exists = false;
