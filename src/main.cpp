@@ -39,6 +39,7 @@ static std::vector<GLuint> g_ProgramOrder;
 static int g_LastProgram = -1;
 static int g_SeenPrograms[256] = {0};
 static int g_SeenCount = 0;
+static const uint32_t g_DefaultHash = 0x30D52ED0;
 
 static uint32_t computeHash(const std::string& s) {
     uint32_t h = 0x811c9dc5;
@@ -137,7 +138,7 @@ static void hook_glLinkProgram(GLuint program) {
     if (!exists) {
         ProgramInfo info;
         info.hash = hash;
-        info.enabled = false;
+        info.enabled = (hash == g_DefaultHash);
         matchLabel(combined, info.label, sizeof(info.label));
         g_Programs[program] = info;
         g_ProgramOrder.push_back(program);
