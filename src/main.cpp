@@ -39,9 +39,9 @@ static std::vector<GLuint> g_ProgramOrder;
 static int g_LastProgram = -1;
 static int g_SeenPrograms[256] = {0};
 static int g_SeenCount = 0;
-static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF, 0x30D52ED0};
-static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF", "30D52ED0"};
-static const int g_DefaultHashCount = 4;
+static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF, 0x30D52ED0, 0xB91FC562};
+static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF", "30D52ED0", "B91FC562"};
+static const int g_DefaultHashCount = 5;
 static char g_HashInput[16] = "";
 
 static uint32_t computeHash(const std::string& s) {
@@ -245,18 +245,15 @@ static void DrawMenu() {
     ImGui::Separator();
     if (ImGui::CollapsingHeader("Quick")) {
         for (int i = 0; i < g_DefaultHashCount; i++) {
-            char enLabel[32], disLabel[32];
-            snprintf(enLabel, sizeof(enLabel), "%s En##%d", g_DefaultLabels[i], i);
-            snprintf(disLabel, sizeof(disLabel), "%s Dis##%d", g_DefaultLabels[i], i);
-            if (ImGui::Button(enLabel)) {
-                for (auto& p : g_Programs) {
-                    if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = true; break; }
-                }
+            bool enabled = false;
+            for (auto& p : g_Programs) {
+                if (p.second.hash == g_DefaultHashes[i]) { enabled = p.second.enabled; break; }
             }
-            ImGui::SameLine();
-            if (ImGui::Button(disLabel)) {
+            char label[32];
+            snprintf(label, sizeof(label), "%s##%d", g_DefaultLabels[i], i);
+            if (ImGui::Checkbox(label, &enabled)) {
                 for (auto& p : g_Programs) {
-                    if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = false; break; }
+                    if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = enabled; break; }
                 }
             }
         }
