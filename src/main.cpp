@@ -150,7 +150,7 @@ static void DrawMenu() {
         if (g_TargetProgramCount > 0) {
             ImGui::Text("Targets (%d):", g_TargetProgramCount);
             for (int i = 0; i < g_TargetProgramCount; i++) {
-                if (i > 0 && i % 10 == 0) ImGui::NewLine();
+                if (i > 0 && i % 5 == 0) ImGui::NewLine();
                 char label[16];
                 snprintf(label, sizeof(label), "%d", g_TargetPrograms[i]);
                 ImGui::Checkbox(label, &g_TargetEnabled[i]);
