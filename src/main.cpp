@@ -90,7 +90,7 @@ static void RestoreGL(const GLState& s) {
 
 static void DrawMenu() {
     ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
-    ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_ResizeFromAnySide);
+    ImGui::Begin("FPS");
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Separator();
     ImGui::Checkbox("Program 181", &g_Use181);
