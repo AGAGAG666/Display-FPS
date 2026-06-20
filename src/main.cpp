@@ -39,9 +39,9 @@ static std::vector<GLuint> g_ProgramOrder;
 static int g_LastProgram = -1;
 static int g_SeenPrograms[256] = {0};
 static int g_SeenCount = 0;
-static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF};
-static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF"};
-static const int g_DefaultHashCount = 3;
+static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF, 0x30D52ED0};
+static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF", "30D52ED0"};
+static const int g_DefaultHashCount = 4;
 static char g_HashInput[16] = "";
 
 static uint32_t computeHash(const std::string& s) {
