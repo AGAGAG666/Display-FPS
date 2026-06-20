@@ -234,49 +234,53 @@ static void DrawMenu() {
     ImGui::Separator();
 
     if (g_SeenCount > 0) {
-        ImGui::Text("Seen (%d):", g_SeenCount);
-        for (int i = 0; i < g_SeenCount; i++) {
-            if (i > 0 && i % 10 == 0) ImGui::NewLine();
+        if (ImGui::CollapsingHeader("Seen", ImGuiTreeNodeFlags_DefaultOpen)) {
+            for (int i = 0; i < g_SeenCount; i++) {
+                if (i > 0 && i % 10 == 0) ImGui::NewLine();
+                ImGui::SameLine();
+                ImGui::Text("%d ", g_SeenPrograms[i]);
+            }
+        }
+    }
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("Quick")) {
+        for (int i = 0; i < g_DefaultHashCount; i++) {
+            char enLabel[32], disLabel[32];
+            snprintf(enLabel, sizeof(enLabel), "%s En##%d", g_DefaultLabels[i], i);
+            snprintf(disLabel, sizeof(disLabel), "%s Dis##%d", g_DefaultLabels[i], i);
+            if (ImGui::Button(enLabel)) {
+                for (auto& p : g_Programs) {
+                    if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = true; break; }
+                }
+            }
             ImGui::SameLine();
-            ImGui::Text("%d ", g_SeenPrograms[i]);
-        }
-    ImGui::Separator();
-    for (int i = 0; i < g_DefaultHashCount; i++) {
-        char enLabel[32], disLabel[32];
-        snprintf(enLabel, sizeof(enLabel), "%s En##%d", g_DefaultLabels[i], i);
-        snprintf(disLabel, sizeof(disLabel), "%s Dis##%d", g_DefaultLabels[i], i);
-        if (ImGui::Button(enLabel)) {
-            for (auto& p : g_Programs) {
-                if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = true; break; }
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(disLabel)) {
-            for (auto& p : g_Programs) {
-                if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = false; break; }
+            if (ImGui::Button(disLabel)) {
+                for (auto& p : g_Programs) {
+                    if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = false; break; }
+                }
             }
         }
     }
-
-    ImGui::Separator();
     }
 
-    int count = 0;
-    for (int i = 0; i < g_SeenCount; i++) {
-        GLuint prog = g_SeenPrograms[i];
-        auto it = g_Programs.find(prog);
+    if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen)) {
+        int count = 0;
+        for (int i = 0; i < g_SeenCount; i++) {
+            GLuint prog = g_SeenPrograms[i];
+            auto it = g_Programs.find(prog);
 
-        char label[128];
-        if (it != g_Programs.end()) {
-            auto& info = it->second;
-            snprintf(label, sizeof(label), "P%u [%08X] %s##%u", prog, info.hash, info.label, prog);
-            ImGui::Checkbox(label, &info.enabled);
-        } else {
-            snprintf(label, sizeof(label), "P%u [unknown]##%u", prog, prog);
-            static bool dummy = false;
-            ImGui::Checkbox(label, &dummy);
+            char label[128];
+            if (it != g_Programs.end()) {
+                auto& info = it->second;
+                snprintf(label, sizeof(label), "P%u [%08X] %s##%u", prog, info.hash, info.label, prog);
+                ImGui::Checkbox(label, &info.enabled);
+            } else {
+                snprintf(label, sizeof(label), "P%u [unknown]##%u", prog, prog);
+                static bool dummy = false;
+                ImGui::Checkbox(label, &dummy);
+            }
+            if (++count % 2 == 0) ImGui::SameLine();
         }
-        if (++count % 2 == 0) ImGui::SameLine();
     }
 
     ImGui::Separator();
