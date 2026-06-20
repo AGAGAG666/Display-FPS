@@ -148,7 +148,8 @@ static void hook_glShaderSource(GLuint shader, GLsizei count, const GLchar** str
                 }
             }
             count = 1;
-            strings = &src.c_str();
+            const GLchar* newStr = src.c_str();
+            strings = &newStr;
             lengths = nullptr;
         }
     }
