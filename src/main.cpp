@@ -20,12 +20,14 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
 static bool g_Use181 = true;
+static int g_LastProgram = -1;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
     if (!orig_glDepthFunc) return;
     GLint prog = 0;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    g_LastProgram = prog;
     if (g_Use181 && prog == 181) {
         orig_glDepthFunc(GL_ALWAYS);
         return;
@@ -92,6 +94,7 @@ static void DrawMenu() {
     ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
     ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+    ImGui::Text("Last: %d", g_LastProgram);
     ImGui::Separator();
     ImGui::Checkbox("Program 181", &g_Use181);
     ImGui::End();
