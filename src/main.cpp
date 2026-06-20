@@ -25,7 +25,6 @@ static bool g_SelectiveDepth = false;
 static int g_LastLoggedProgram = -1;
 static int g_TargetPrograms[64] = {0};
 static int g_TargetProgramCount = 0;
-static bool g_ProgramEnabled[64] = {true};
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static int g_ModifiedPrograms[64] = {0};
@@ -43,12 +42,11 @@ static void hook_glDepthFunc(GLenum func) {
             if (g_SeenPrograms[i] == prog) { exists = true; break; }
         }
         if (!exists && g_SeenCount < 64) {
-            g_SeenPrograms[g_SeenCount] = prog;
-            g_ProgramEnabled[g_SeenCount] = true;
-            g_SeenCount++;
+            g_SeenPrograms[g_SeenCount++] = prog;
+            g_TargetPrograms[g_TargetProgramCount++] = prog;
         }
-        for (int i = 0; i < g_SeenCount; i++) {
-            if (g_SeenPrograms[i] == prog && g_ProgramEnabled[i]) {
+        for (int i = 0; i < g_TargetProgramCount; i++) {
+            if (g_TargetPrograms[i] == prog) {
                 bool modExists = false;
                 for (int j = 0; j < g_ModifiedCount; j++) {
                     if (g_ModifiedPrograms[j] == prog) { modExists = true; break; }
@@ -144,18 +142,10 @@ static void DrawMenu() {
             }
         }
         ImGui::Separator();
-        if (g_SeenCount > 0) {
-            ImGui::Text("Seen (%d):", g_SeenCount);
-            for (int i = 0; i < g_SeenCount; i++) {
-                char label[32];
-                snprintf(label, sizeof(label), "Program %d", g_SeenPrograms[i]);
-                ImGui::Checkbox(label, &g_ProgramEnabled[i]);
-            }
-        }
-        g_TargetProgramCount = 0;
-        for (int i = 0; i < g_SeenCount; i++) {
-            if (g_ProgramEnabled[i]) {
-                g_TargetPrograms[g_TargetProgramCount++] = g_SeenPrograms[i];
+        if (g_TargetProgramCount > 0) {
+            ImGui::Text("Targets (%d):", g_TargetProgramCount);
+            for (int i = 0; i < g_TargetProgramCount; i++) {
+                ImGui::Text("  %d", g_TargetPrograms[i]);
             }
         }
     }
