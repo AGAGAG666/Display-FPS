@@ -37,6 +37,8 @@ struct ProgramInfo {
 static std::map<GLuint, ProgramInfo> g_Programs;
 static std::vector<GLuint> g_ProgramOrder;
 static int g_LastProgram = -1;
+static int g_SeenPrograms[256] = {0};
+static int g_SeenCount = 0;
 
 static uint32_t computeHash(const std::string& s) {
     uint32_t h = 0x811c9dc5;
@@ -129,6 +131,14 @@ static void hook_glDepthFunc(GLenum func) {
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
     g_LastProgram = prog;
 
+    bool seen = false;
+    for (int i = 0; i < g_SeenCount; i++) {
+        if (g_SeenPrograms[i] == prog) { seen = true; break; }
+    }
+    if (!seen && g_SeenCount < 256) {
+        g_SeenPrograms[g_SeenCount++] = prog;
+    }
+
     auto it = g_Programs.find(prog);
     if (it != g_Programs.end() && it->second.enabled) {
         orig_glDepthFunc(GL_ALWAYS);
@@ -198,6 +208,16 @@ static void DrawMenu() {
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Text("Last: %d", g_LastProgram);
     ImGui::Separator();
+
+    if (g_SeenCount > 0) {
+        ImGui::Text("Seen (%d):", g_SeenCount);
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (i > 0 && i % 10 == 0) ImGui::NewLine();
+            ImGui::SameLine();
+            ImGui::Text("%d ", g_SeenPrograms[i]);
+        }
+        ImGui::Separator();
+    }
 
     int count = 0;
     for (GLuint prog : g_ProgramOrder) {
