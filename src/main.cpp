@@ -195,26 +195,71 @@ static void hook_glDepthFunc(GLenum func) {
 static void (*orig_glUniform1f)(GLint, GLfloat) = nullptr;
 static void hook_glUniform1f(GLint location, GLfloat v0) {
     if (orig_glUniform1f) orig_glUniform1f(location, v0);
-    if (!g_ShowUniforms) return;
-
+    if (!g_ShowUniforms || location < 0) return;
     char name[64] = {0};
     GLint prog = 0;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
     if (prog) {
-        GLsizei len = 0;
-        GLint size = 0;
-        GLenum type = 0;
+        GLsizei len = 0; GLint size = 0; GLenum type = 0;
         glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
     }
-
+    if (!name[0]) { snprintf(name, sizeof(name), "loc_%d", location); }
     bool exists = false;
     for (auto& u : g_Uniforms) {
         if (strcmp(u.name, name) == 0) { u.value = v0; exists = true; break; }
     }
-    if (!exists && name[0]) {
+    if (!exists) {
         UniformEntry entry;
         strncpy(entry.name, name, sizeof(entry.name) - 1);
         entry.value = v0;
+        g_Uniforms.push_back(entry);
+    }
+}
+
+static void (*orig_glUniform4f)(GLint, GLfloat, GLfloat, GLfloat, GLfloat) = nullptr;
+static void hook_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) {
+    if (orig_glUniform4f) orig_glUniform4f(location, v0, v1, v2, v3);
+    if (!g_ShowUniforms || location < 0) return;
+    char name[64] = {0};
+    GLint prog = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    if (prog) {
+        GLsizei len = 0; GLint size = 0; GLenum type = 0;
+        glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
+    }
+    if (!name[0]) { snprintf(name, sizeof(name), "loc_%d", location); }
+    bool exists = false;
+    for (auto& u : g_Uniforms) {
+        if (strcmp(u.name, name) == 0) { exists = true; break; }
+    }
+    if (!exists) {
+        UniformEntry entry;
+        strncpy(entry.name, name, sizeof(entry.name) - 1);
+        entry.value = v0;
+        g_Uniforms.push_back(entry);
+    }
+}
+
+static void (*orig_glUniform4fv)(GLint, GLsizei, const GLfloat*) = nullptr;
+static void hook_glUniform4fv(GLint location, GLsizei count, const GLfloat* value) {
+    if (orig_glUniform4fv) orig_glUniform4fv(location, count, value);
+    if (!g_ShowUniforms || location < 0) return;
+    char name[64] = {0};
+    GLint prog = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    if (prog) {
+        GLsizei len = 0; GLint size = 0; GLenum type = 0;
+        glGetActiveUniform(prog, location, sizeof(name), &len, &size, &type, name);
+    }
+    if (!name[0]) { snprintf(name, sizeof(name), "loc_%d", location); }
+    bool exists = false;
+    for (auto& u : g_Uniforms) {
+        if (strcmp(u.name, name) == 0) { exists = true; break; }
+    }
+    if (!exists) {
+        UniformEntry entry;
+        strncpy(entry.name, name, sizeof(entry.name) - 1);
+        entry.value = value ? value[0] : 0;
         g_Uniforms.push_back(entry);
     }
 }
@@ -471,6 +516,12 @@ static void* MainThread(void*) {
         void* uniform1f = (void*)GlossSymbol(hGL, "glUniform1f", nullptr);
         if (uniform1f)
             GlossHook(uniform1f, (void*)hook_glUniform1f, (void**)&orig_glUniform1f);
+        void* uniform4f = (void*)GlossSymbol(hGL, "glUniform4f", nullptr);
+        if (uniform4f)
+            GlossHook(uniform4f, (void*)hook_glUniform4f, (void**)&orig_glUniform4f);
+        void* uniform4fv = (void*)GlossSymbol(hGL, "glUniform4fv", nullptr);
+        if (uniform4fv)
+            GlossHook(uniform4fv, (void*)hook_glUniform4fv, (void**)&orig_glUniform4fv);
     }
     return nullptr;
 }
