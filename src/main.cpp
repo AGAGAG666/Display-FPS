@@ -132,6 +132,7 @@ static void DrawMenu() {
         if (g_SeenCount > 0) {
             ImGui::Text("Seen (%d):", g_SeenCount);
             for (int i = 0; i < g_SeenCount; i++) {
+                if (i > 0 && i % 10 == 0) ImGui::NewLine();
                 ImGui::SameLine();
                 ImGui::Text("%d ", g_SeenPrograms[i]);
             }
@@ -140,6 +141,7 @@ static void DrawMenu() {
         if (g_ModifiedCount > 0) {
             ImGui::Text("Modified (%d):", g_ModifiedCount);
             for (int i = 0; i < g_ModifiedCount; i++) {
+                if (i > 0 && i % 10 == 0) ImGui::NewLine();
                 ImGui::SameLine();
                 ImGui::Text("%d ", g_ModifiedPrograms[i]);
             }
@@ -148,10 +150,10 @@ static void DrawMenu() {
         if (g_TargetProgramCount > 0) {
             ImGui::Text("Targets (%d):", g_TargetProgramCount);
             for (int i = 0; i < g_TargetProgramCount; i++) {
+                if (i > 0 && i % 10 == 0) ImGui::NewLine();
                 char label[16];
                 snprintf(label, sizeof(label), "%d", g_TargetPrograms[i]);
                 ImGui::Checkbox(label, &g_TargetEnabled[i]);
-                if ((i + 1) % 3 == 0) ImGui::SameLine();
             }
         }
     }
@@ -172,6 +174,7 @@ static void Setup() {
     ImGui_ImplAndroid_Init();
     ImGui_ImplOpenGL3_Init("#version 300 es");
     ImGui::GetStyle().ScaleAllSizes(scale);
+    ImGui::GetStyle().ScrollbarSize = 20.0f;
     g_Initialized = true;
 }
 
