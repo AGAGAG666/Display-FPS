@@ -240,7 +240,8 @@ static void DrawMenu() {
     }
 
     int count = 0;
-    for (GLuint prog : g_ProgramOrder) {
+    for (int i = 0; i < g_SeenCount; i++) {
+        GLuint prog = g_SeenPrograms[i];
         auto it = g_Programs.find(prog);
         if (it == g_Programs.end()) continue;
         auto& info = it->second;
