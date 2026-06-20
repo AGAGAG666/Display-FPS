@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <cstdio>
 
 #include "pl/Gloss.h"
 
@@ -19,16 +20,47 @@ static EGLSurface g_TargetSurface = EGL_NO_SURFACE;
 
 static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 
-static bool g_Use187 = true, g_Use144 = true, g_Use3 = true;
-static int g_LastProgram = -1;
+static bool g_ForceAlwaysDepth = false;
+static bool g_SelectiveDepth = false;
+static int g_LastLoggedProgram = -1;
+static int g_TargetPrograms[64] = {0};
+static int g_TargetProgramCount = 0;
+static bool g_ProgramEnabled[64] = {true};
+static int g_SeenPrograms[64] = {0};
+static int g_SeenCount = 0;
+static int g_ModifiedPrograms[64] = {0};
+static int g_ModifiedCount = 0;
 static void (*orig_glDepthFunc)(GLenum) = nullptr;
 
 static void hook_glDepthFunc(GLenum func) {
     if (!orig_glDepthFunc) return;
-    GLint prog = 0;
-    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-    g_LastProgram = prog;
-    if ((g_Use187 && prog == 187) || (g_Use144 && prog == 144) || (g_Use3 && prog == 3)) {
+    if (g_SelectiveDepth) {
+        GLint prog = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+        g_LastLoggedProgram = prog;
+        bool exists = false;
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (g_SeenPrograms[i] == prog) { exists = true; break; }
+        }
+        if (!exists && g_SeenCount < 64) {
+            g_SeenPrograms[g_SeenCount] = prog;
+            g_ProgramEnabled[g_SeenCount] = true;
+            g_SeenCount++;
+        }
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (g_SeenPrograms[i] == prog && g_ProgramEnabled[i]) {
+                bool modExists = false;
+                for (int j = 0; j < g_ModifiedCount; j++) {
+                    if (g_ModifiedPrograms[j] == prog) { modExists = true; break; }
+                }
+                if (!modExists && g_ModifiedCount < 64) {
+                    g_ModifiedPrograms[g_ModifiedCount++] = prog;
+                }
+                orig_glDepthFunc(GL_ALWAYS);
+                return;
+            }
+        }
+    } else if (g_ForceAlwaysDepth) {
         orig_glDepthFunc(GL_ALWAYS);
         return;
     }
@@ -91,14 +123,42 @@ static void RestoreGL(const GLState& s) {
 }
 
 static void DrawMenu() {
-    ImGui::SetNextWindowSize(ImVec2(200, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(250, 0), ImGuiCond_FirstUseEver);
     ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
-    ImGui::Text("Last: %d", g_LastProgram);
     ImGui::Separator();
-    ImGui::Checkbox("Program 3", &g_Use3);
-    ImGui::Checkbox("Program 144", &g_Use144);
-    ImGui::Checkbox("Program 187", &g_Use187);
+    ImGui::Checkbox("Force GL_ALWAYS", &g_ForceAlwaysDepth);
+    ImGui::Checkbox("Selective Mode", &g_SelectiveDepth);
+    if (g_SelectiveDepth) {
+        if (g_SeenCount > 0) {
+            ImGui::Text("Seen (%d):", g_SeenCount);
+            for (int i = 0; i < g_SeenCount; i++) {
+                ImGui::Text("  %d", g_SeenPrograms[i]);
+            }
+            ImGui::Separator();
+        }
+        if (g_ModifiedCount > 0) {
+            ImGui::Text("Modified (%d):", g_ModifiedCount);
+            for (int i = 0; i < g_ModifiedCount; i++) {
+                ImGui::Text("  %d", g_ModifiedPrograms[i]);
+            }
+        }
+        ImGui::Separator();
+        if (g_SeenCount > 0) {
+            ImGui::Text("Seen (%d):", g_SeenCount);
+            for (int i = 0; i < g_SeenCount; i++) {
+                char label[32];
+                snprintf(label, sizeof(label), "Program %d", g_SeenPrograms[i]);
+                ImGui::Checkbox(label, &g_ProgramEnabled[i]);
+            }
+        }
+        g_TargetProgramCount = 0;
+        for (int i = 0; i < g_SeenCount; i++) {
+            if (g_ProgramEnabled[i]) {
+                g_TargetPrograms[g_TargetProgramCount++] = g_SeenPrograms[i];
+            }
+        }
+    }
     ImGui::End();
 }
 
