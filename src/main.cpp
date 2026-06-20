@@ -244,6 +244,16 @@ static void DrawMenu() {
     }
     ImGui::Separator();
     if (ImGui::CollapsingHeader("Quick")) {
+        if (ImGui::Button("All Entity")) {
+            for (auto& p : g_Programs) {
+                if (strstr(p.second.label, "entity")) { p.second.enabled = true; }
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("None")) {
+            for (auto& p : g_Programs) { p.second.enabled = false; }
+        }
+        ImGui::Separator();
         for (int i = 0; i < g_DefaultHashCount; i++) {
             bool enabled = false;
             for (auto& p : g_Programs) {
