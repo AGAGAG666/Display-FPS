@@ -261,7 +261,6 @@ static void DrawMenu() {
             }
         }
     }
-    }
 
     if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen)) {
         int count = 0;
