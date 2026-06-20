@@ -23,9 +23,9 @@ static EGLBoolean (*orig_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
 static bool g_ForceAlwaysDepth = false;
 static bool g_SelectiveDepth = false;
 static int g_LastLoggedProgram = -1;
-static int g_TargetPrograms[64] = {0, 3, 35, 44, 51, 53, 54, 61, 80, 93, 98, 103, 111, 118, 132, 134, 136, 148, 149, 169, 172, 175, 178, 181, 193, 217, 220, 247, 262, 272, 275, 276, 302, 308, 319, 331, 334, 343, 349, 400, 403, 405, 419, 432, 436, 443, 447, 453, 463};
-static int g_TargetProgramCount = 49;
-static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
+static int g_TargetPrograms[64] = {0, 3, 39, 132, 169, 172, 175, 178, 181, 247, 331, 349};
+static int g_TargetProgramCount = 12;
+static bool g_ProgramEnabled[64] = {true, true, true, true, true, true, true, true, true, true, true, true};
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static int g_ModifiedPrograms[64] = {0};
@@ -143,19 +143,16 @@ static void DrawMenu() {
         }
         ImGui::Separator();
         ImGui::Text("Targets (%d):", g_TargetProgramCount);
-        for (int i = 0; i < g_TargetProgramCount; i++) {
+        static const int allPrograms[12] = {
+            0, 3, 39, 132, 169, 172, 175, 178, 181, 247, 331, 349
+        };
+        for (int i = 0; i < 12; i++) {
             char label[32];
-            snprintf(label, sizeof(label), "Program %d", g_TargetPrograms[i]);
+            snprintf(label, sizeof(label), "Program %d", allPrograms[i]);
             ImGui::Checkbox(label, &g_ProgramEnabled[i]);
         }
-        static const int allPrograms[49] = {
-            0, 3, 35, 44, 51, 53, 54, 61, 80, 93, 98, 103, 111, 118, 132, 134,
-            136, 148, 149, 169, 172, 175, 178, 181, 193, 217, 220, 247, 262, 272,
-            275, 276, 302, 308, 319, 331, 334, 343, 349, 400, 403, 405, 419, 432,
-            436, 443, 447, 453, 463
-        };
         g_TargetProgramCount = 0;
-        for (int i = 0; i < 49; i++) {
+        for (int i = 0; i < 12; i++) {
             if (g_ProgramEnabled[i]) {
                 g_TargetPrograms[g_TargetProgramCount++] = allPrograms[i];
             }
