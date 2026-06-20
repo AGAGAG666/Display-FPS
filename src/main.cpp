@@ -25,6 +25,7 @@ static bool g_SelectiveDepth = false;
 static int g_LastLoggedProgram = -1;
 static int g_TargetPrograms[64] = {0};
 static int g_TargetProgramCount = 0;
+static bool g_TargetEnabled[64] = {true};
 static int g_SeenPrograms[64] = {0};
 static int g_SeenCount = 0;
 static int g_ModifiedPrograms[64] = {0};
@@ -46,7 +47,7 @@ static void hook_glDepthFunc(GLenum func) {
             g_TargetPrograms[g_TargetProgramCount++] = prog;
         }
         for (int i = 0; i < g_TargetProgramCount; i++) {
-            if (g_TargetPrograms[i] == prog) {
+            if (g_TargetPrograms[i] == prog && g_TargetEnabled[i]) {
                 bool modExists = false;
                 for (int j = 0; j < g_ModifiedCount; j++) {
                     if (g_ModifiedPrograms[j] == prog) { modExists = true; break; }
@@ -121,7 +122,7 @@ static void RestoreGL(const GLState& s) {
 }
 
 static void DrawMenu() {
-    ImGui::SetNextWindowSize(ImVec2(250, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_FirstUseEver);
     ImGui::Begin("Display", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
     ImGui::Separator();
@@ -131,21 +132,26 @@ static void DrawMenu() {
         if (g_SeenCount > 0) {
             ImGui::Text("Seen (%d):", g_SeenCount);
             for (int i = 0; i < g_SeenCount; i++) {
-                ImGui::Text("  %d", g_SeenPrograms[i]);
+                ImGui::SameLine();
+                ImGui::Text("%d ", g_SeenPrograms[i]);
             }
             ImGui::Separator();
         }
         if (g_ModifiedCount > 0) {
             ImGui::Text("Modified (%d):", g_ModifiedCount);
             for (int i = 0; i < g_ModifiedCount; i++) {
-                ImGui::Text("  %d", g_ModifiedPrograms[i]);
+                ImGui::SameLine();
+                ImGui::Text("%d ", g_ModifiedPrograms[i]);
             }
+            ImGui::Separator();
         }
-        ImGui::Separator();
         if (g_TargetProgramCount > 0) {
             ImGui::Text("Targets (%d):", g_TargetProgramCount);
             for (int i = 0; i < g_TargetProgramCount; i++) {
-                ImGui::Text("  %d", g_TargetPrograms[i]);
+                char label[16];
+                snprintf(label, sizeof(label), "%d", g_TargetPrograms[i]);
+                ImGui::Checkbox(label, &g_TargetEnabled[i]);
+                if ((i + 1) % 3 == 0) ImGui::SameLine();
             }
         }
     }
