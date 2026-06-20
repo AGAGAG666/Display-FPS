@@ -40,6 +40,7 @@ static int g_LastProgram = -1;
 static int g_SeenPrograms[256] = {0};
 static int g_SeenCount = 0;
 static const uint32_t g_DefaultHashes[] = {0x3F94D1B0, 0x6E7CA2C7, 0x151CB0FF};
+static const char* g_DefaultLabels[] = {"3F94D1B0", "6E7CA2C7", "151CB0FF"};
 static const int g_DefaultHashCount = 3;
 static char g_HashInput[16] = "";
 
@@ -141,9 +142,6 @@ static void hook_glLinkProgram(GLuint program) {
         ProgramInfo info;
         info.hash = hash;
         info.enabled = false;
-        for (int i = 0; i < g_DefaultHashCount; i++) {
-            if (hash == g_DefaultHashes[i]) { info.enabled = true; break; }
-        }
         matchLabel(combined, info.label, sizeof(info.label));
         g_Programs[program] = info;
         g_ProgramOrder.push_back(program);
@@ -242,7 +240,25 @@ static void DrawMenu() {
             ImGui::SameLine();
             ImGui::Text("%d ", g_SeenPrograms[i]);
         }
-        ImGui::Separator();
+    ImGui::Separator();
+    for (int i = 0; i < g_DefaultHashCount; i++) {
+        char enLabel[32], disLabel[32];
+        snprintf(enLabel, sizeof(enLabel), "%s En##%d", g_DefaultLabels[i], i);
+        snprintf(disLabel, sizeof(disLabel), "%s Dis##%d", g_DefaultLabels[i], i);
+        if (ImGui::Button(enLabel)) {
+            for (auto& p : g_Programs) {
+                if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = true; break; }
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(disLabel)) {
+            for (auto& p : g_Programs) {
+                if (p.second.hash == g_DefaultHashes[i]) { p.second.enabled = false; break; }
+            }
+        }
+    }
+
+    ImGui::Separator();
     }
 
     int count = 0;
