@@ -243,12 +243,17 @@ static void DrawMenu() {
     for (int i = 0; i < g_SeenCount; i++) {
         GLuint prog = g_SeenPrograms[i];
         auto it = g_Programs.find(prog);
-        if (it == g_Programs.end()) continue;
-        auto& info = it->second;
 
         char label[128];
-        snprintf(label, sizeof(label), "P%u [%08X] %s##%u", prog, info.hash, info.label, prog);
-        ImGui::Checkbox(label, &info.enabled);
+        if (it != g_Programs.end()) {
+            auto& info = it->second;
+            snprintf(label, sizeof(label), "P%u [%08X] %s##%u", prog, info.hash, info.label, prog);
+            ImGui::Checkbox(label, &info.enabled);
+        } else {
+            snprintf(label, sizeof(label), "P%u [unknown]##%u", prog, prog);
+            static bool dummy = false;
+            ImGui::Checkbox(label, &dummy);
+        }
         if (++count % 2 == 0) ImGui::SameLine();
     }
 
