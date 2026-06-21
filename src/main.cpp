@@ -493,7 +493,7 @@ static void HookInput() {
 }
 
 static void* MainThread(void*) {
-    sleep(3);
+    sleep(1);
     GlossInit(true);
     GHandle hEGL = GlossOpen("libEGL.so");
     if (!hEGL) return nullptr;
